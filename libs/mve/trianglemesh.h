@@ -91,6 +91,7 @@ public:
     typedef std::vector<math::Vec3f> NormalList;
     typedef std::vector<math::Vec2f> TexCoordList;
     typedef std::vector<VertexID> FaceList;
+    typedef std::vector<float> FootprintList;
 
     typedef std::vector<bool> DeleteList;
 
@@ -124,14 +125,19 @@ public:
     /** Returns the face colors. */
     ColorList& get_face_colors (void);
 
-    /** Returns true if vertex normal amount equals vertex amount. */
+    /** Returns the vertex footprints. */
+    FootprintList const& get_vertex_footprints (void) const;
+    /** Returns the vertex footprints. */
+    FootprintList& get_vertex_footprints (void);
+
+    /** Returns true if vertex normals and vertex amount are equal. */
     bool has_vertex_normals (void) const;
-    /** Returns true if texture coordinate amount equals vertex amount. */
-    bool has_vertex_texcoords (void) const;
-    /** Returns true if face normal amount equals face amount. */
+    /** Returns true if face normals and face amount are equal. */
     bool has_face_normals (void) const;
-    /** Returns true if face color amount equals face amount. */
+    /** Returns true if face colors and face amount are equal. */
     bool has_face_colors (void) const;
+    /** Returns true if vertex footprints and vertex amount are equal. */
+    bool has_vertex_footprints (void) const;
 
     /** Recalculates normals if normal amount is inconsistent. */
     void ensure_normals (bool face = true, bool vertex = true);
@@ -155,6 +161,7 @@ public:
 protected:
     NormalList vertex_normals;
     TexCoordList vertex_texcoords;
+    FootprintList vertex_footprints;
 
     FaceList faces;
     NormalList face_normals;
@@ -302,6 +309,18 @@ TriangleMesh::get_vertex_texcoords (void)
     return this->vertex_texcoords;
 }
 
+inline TriangleMesh::FootprintList const&
+TriangleMesh::get_vertex_footprints (void) const
+{
+    return this->vertex_footprints;
+}
+
+inline TriangleMesh::FootprintList&
+TriangleMesh::get_vertex_footprints (void)
+{
+    return this->vertex_footprints;
+}
+
 inline TriangleMesh::FaceList const&
 TriangleMesh::get_faces (void) const
 {
@@ -350,6 +369,7 @@ TriangleMesh::clear (void)
 {
     this->vertex_normals.clear();
     this->vertex_texcoords.clear();
+    this->vertex_footprints.clear();
     this->faces.clear();
     this->face_normals.clear();
     this->face_colors.clear();
@@ -360,13 +380,6 @@ TriangleMesh::has_vertex_normals (void) const
 {
     return !this->vertices.empty()
         && this->vertex_normals.size() == this->vertices.size();
-}
-
-inline bool
-TriangleMesh::has_vertex_texcoords (void) const
-{
-    return !this->vertices.empty()
-        && this->vertex_texcoords.size() == this->vertices.size();
 }
 
 inline bool
@@ -381,6 +394,13 @@ TriangleMesh::has_face_colors (void) const
 {
     return !this->faces.empty()
         && this->faces.size() == this->face_colors.size() * 3;
+}
+
+inline bool
+TriangleMesh::has_vertex_footprints (void) const
+{
+    return !this->vertices.empty()
+        && this->vertex_footprints.size() == this->vertices.size();
 }
 
 MVE_NAMESPACE_END
