@@ -107,7 +107,7 @@ depthmap_cleanup (FloatImage::ConstPtr dm, std::size_t thres)
 void
 depthmap_confidence_clean (FloatImage::Ptr dm, FloatImage::ConstPtr cm)
 {
-    if (!dm.get() || !cm.get())
+    if (dm == NULL || cm == NULL)
         throw std::invalid_argument("NULL depth or confidence map");
 
     if (dm->width() != cm->width() || dm->height() != cm->height())
@@ -137,7 +137,7 @@ FloatImage::Ptr
 depthmap_bilateral_filter (FloatImage::ConstPtr dm,
     math::Matrix3f const& invproj, float gc_sigma, float pc_factor)
 {
-    if (!dm.get())
+    if (dm == NULL)
         throw std::invalid_argument("NULL image given");
 
     if (gc_sigma <= 0.0f || pc_factor <= 0.0f)
@@ -222,6 +222,7 @@ dm_make_triangle (TriangleMesh* mesh, mve::Image<unsigned int>& vidx,
     mve::TriangleMesh::FaceList& faces(mesh->get_faces());
     mve::TriangleMesh::FootprintList& fps(mesh->get_vertex_footprints());
 
+
     for (int j = 0; j < 3; ++j)
     {
         std::size_t iidx = i + (tverts[j] % 2) + w * (tverts[j] / 2);
@@ -267,7 +268,7 @@ TriangleMesh::Ptr
 depthmap_triangulate (FloatImage::ConstPtr dm, math::Matrix3f const& invproj,
     float dd_factor, mve::Image<unsigned int>* vids)
 {
-    if (!dm.get())
+    if (dm == NULL)
         throw std::invalid_argument("NULL depthmap given");
 
     std::size_t w = dm->width();
@@ -368,7 +369,7 @@ depthmap_triangulate (FloatImage::ConstPtr dm, math::Matrix3f const& invproj,
     }
 
     /* Provide the vertex ID mapping if requested. */
-    if (vids != 0)
+    if (vids != NULL)
         std::swap(vidx, *vids);
 
     return mesh;
@@ -379,13 +380,13 @@ TriangleMesh::Ptr
 depthmap_triangulate (FloatImage::ConstPtr dm, ByteImage::ConstPtr ci,
     math::Matrix3f const& invproj, float dd_factor)
 {
-    if (!dm.get())
+    if (dm == NULL)
         throw std::invalid_argument("NULL depthmap given");
 
     int w = dm->width();
     int h = dm->height();
 
-    if (ci.get() && (ci->width() != w || ci->height() != h))
+    if (ci != NULL && (ci->width() != w || ci->height() != h))
         throw std::invalid_argument("Color image dimension mismatch");
 
     /* Triangulate depth map. */
@@ -393,7 +394,7 @@ depthmap_triangulate (FloatImage::ConstPtr dm, ByteImage::ConstPtr ci,
     mve::TriangleMesh::Ptr mesh;
     mesh = mve::geom::depthmap_triangulate(dm, invproj, dd_factor, &vids);
 
-    if (ci.get() == 0)
+    if (ci == NULL)
         return mesh;
 
     /* Use vertex index mapping to color the mesh. */
@@ -429,7 +430,7 @@ TriangleMesh::Ptr
 depthmap_triangulate (FloatImage::ConstPtr dm, ByteImage::ConstPtr ci,
     CameraInfo const& cam, float dd_factor)
 {
-    if (!dm.get())
+    if (dm == NULL)
         throw std::invalid_argument("NULL depthmap given");
     if (cam.flen == 0.0f)
         throw std::invalid_argument("Invalid camera given");
@@ -470,7 +471,7 @@ dm_is_depth_disc (math::Vec3f const& v1,
 void
 rangegrid_triangulate (Image<unsigned int> const& grid, TriangleMesh::Ptr mesh)
 {
-    if (!mesh.get())
+    if (mesh == NULL)
         throw std::invalid_argument("NULL mesh given");
 
     int w = grid.width();
@@ -547,7 +548,7 @@ rangegrid_triangulate (Image<unsigned int> const& grid, TriangleMesh::Ptr mesh)
 void
 depthmap_mesh_confidences (TriangleMesh::Ptr mesh, int iterations)
 {
-    if (!mesh.get())
+    if (mesh == NULL)
         throw std::invalid_argument("NULL mesh given");
 
     if (iterations < 0)
@@ -556,21 +557,20 @@ depthmap_mesh_confidences (TriangleMesh::Ptr mesh, int iterations)
     if (iterations == 0)
         return;
 
-    TriangleMesh::ConfidenceList& c(mesh->get_vertex_confidences());
+    TriangleMesh::ConfidenceList& confs(mesh->get_vertex_confidences());
     TriangleMesh::VertexList const& verts(mesh->get_vertices());
-    c.clear();
-    c.resize(verts.size(), 1.0f);
+    confs.clear();
+    confs.resize(verts.size(), 1.0f);
 
     /* Find boundary vertices and remember them. */
-    typedef std::set<std::size_t> VIndexMap;
-    VIndexMap vidx;
-    VertexInfoList::Ptr vinfo(VertexInfoList::create(mesh));
+    std::vector<std::size_t> vidx;
+    VertexInfoList vinfo(mesh);
 
-    for (std::size_t i = 0; i < vinfo->size(); ++i)
+    for (std::size_t i = 0; i < vinfo.size(); ++i)
     {
-        MeshVertexInfo const& info(vinfo->at(i));
+        MeshVertexInfo const& info(vinfo[i]);
         if (info.vclass == VERTEX_CLASS_BORDER)
-            vidx.insert(i);
+            vidx.push_back(i);
     }
 
     /* Iteratively expand the current region and update confidences. */
@@ -578,21 +578,21 @@ depthmap_mesh_confidences (TriangleMesh::Ptr mesh, int iterations)
     {
         /* Calculate confidence for that iteration. */
         float conf = (float)current / (float)iterations;
-        conf = math::algo::fastpow(conf, 3);
+        //conf = math::algo::fastpow(conf, 3);
 
         /* Assign current confidence to all vertices. */
-        for (VIndexMap::iterator i = vidx.begin(); i != vidx.end(); ++i)
-            c[*i] = conf;
+        for (std::size_t i = 0; i < vidx.size(); ++i)
+            confs[vidx[i]] = conf;
 
         /* Replace vertex list with adjacent vertices. */
-        VIndexMap cvidx;
+        std::vector<std::size_t> cvidx;
         std::swap(vidx, cvidx);
-        for (VIndexMap::iterator i = cvidx.begin(); i != cvidx.end(); ++i)
+        for (std::size_t i = 0; i < cvidx.size(); ++i)
         {
-            MeshVertexInfo info = vinfo->at(*i);
+            MeshVertexInfo info = vinfo[cvidx[i]];
             for (std::size_t j = 0; j < info.verts.size(); ++j)
-                if (c[info.verts[j]] == 1.0f)
-                    vidx.insert(info.verts[j]);
+                if (confs[info.verts[j]] == 1.0f)
+                    vidx.push_back(info.verts[j]);
         }
     }
 }
@@ -602,7 +602,7 @@ depthmap_mesh_confidences (TriangleMesh::Ptr mesh, int iterations)
 void
 depthmap_mesh_peeling (TriangleMesh::Ptr mesh, int iterations)
 {
-    if (!mesh.get())
+    if (mesh == NULL)
         throw std::invalid_argument("NULL mesh given");
 
     if (iterations < 0)
